@@ -4,22 +4,42 @@ from torch.utils.data import DataLoader
 from src.utils import *
 from src import train
 
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="1,2"
 
-parser = argparse.ArgumentParser(description='Meme Hatefulness detection')
+
+parser = argparse.ArgumentParser(description='Multimodal classification on Images and Text')
 
 # Fixed
-parser.add_argument('--model', type=str, default='AverageBERT',
-                    help='name of the model to use (Transformer, etc.)')
+parser.add_argument('--model', type=str, default='MMTransformer',
+                    help='name of the model to use (MMTransformer, etc.)')
 
 # Tasks
 parser.add_argument('--dataset', type=str, default='meme_dataset',
                     help='dataset to use (default: meme_dataset)')
 parser.add_argument('--data_path', type=str, default='data',
                     help='path for storing the dataset')
+parser.add_argument('--vonly', action='store_true',
+                    help='use the crossmodal fusion into v (default: False)')
+parser.add_argument('--lonly', action='store_true',
+                    help='use the crossmodal fusion into l (default: False)')
+parser.add_argument('--aligned', action='store_true',
+                    help='consider aligned experiment or not (default: False)')
 
 # Dropouts
-parser.add_argument('--mlp_dropout', type=float, default=0.0,
-                    help='fully connected layers dropout')
+parser.add_argument('--attn_dropout', type=float, default=0.1,
+                    help='attention dropout')
+parser.add_argument('--attn_dropout_v', type=float, default=0.0,
+                    help='attention dropout (for visual)')
+parser.add_argument('--relu_dropout', type=float, default=0.1,
+                    help='relu dropout')
+parser.add_argument('--embed_dropout', type=float, default=0.25,
+                    help='embedding dropout')
+parser.add_argument('--res_dropout', type=float, default=0.1,
+                    help='residual block dropout')
+parser.add_argument('--out_dropout', type=float, default=0.0,
+                    help='output layer dropout')
 
 # Architecture
 parser.add_argument('--bert_model', type=str, default="bert-base-cased",
@@ -28,6 +48,12 @@ parser.add_argument('--cnn_model', type=str, default="vgg16",
                     help='pretrained CNN to use for image feature extraction')
 parser.add_argument('--image_feature_size', type=int, default=4096,
                     help='image feature size extracted from pretrained CNN (default: 4096)')
+parser.add_argument('--nlevels', type=int, default=5,
+                    help='number of layers in the network (default: 5)')
+parser.add_argument('--num_heads', type=int, default=5,
+                    help='number of heads for the transformer network (default: 5)')
+parser.add_argument('--attn_mask', action='store_false',
+                    help='use attention mask for Transformer (default: true)')
 
 # Tuning
 parser.add_argument('--batch_size', type=int, default=8, metavar='N',
@@ -56,6 +82,13 @@ parser.add_argument('--name', type=str, default='model',
                     help='name of the trial (default: "model")')
 
 args = parser.parse_args()
+
+valid_partial_mode = args.lonly + args.vonly
+
+if valid_partial_mode == 0:
+    args.lonly = args.vonly = True
+elif valid_partial_mode != 1:
+    raise ValueError("You can only choose one of {l/v}only.")
 
 torch.manual_seed(args.seed)
 dataset = str.lower(args.dataset.strip())
@@ -114,6 +147,9 @@ print('Finish loading the data....')
 ####################################################################
 
 hyp_params = args
+hyp_params.orig_d_l, hyp_params.orig_d_v = 768, hyp_params.image_feature_size
+hyp_params.l_len, hyp_params.v_len = hyp_params.max_token_length, 1
+hyp_params.layers = args.nlevels
 hyp_params.use_cuda = use_cuda
 hyp_params.dataset = dataset
 hyp_params.n_train, hyp_params.n_valid = len(train_data), len(valid_data)

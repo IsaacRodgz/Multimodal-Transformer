@@ -14,6 +14,11 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score, f1_score
 from src.eval_metrics import *
 
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]="1,2"
+
+
 ####################################################################
 #
 # Construct the model
@@ -55,9 +60,8 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
     feature_extractor = settings['feature_extractor']
     optimizer = settings['optimizer']
     criterion = settings['criterion']
-
     scheduler = settings['scheduler']
-
+    
 
     def train(model, feature_extractor, optimizer, criterion):
         epoch_loss = 0
@@ -92,12 +96,9 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                 feature_images = feature_extractor.avgpool(feature_images)
                 feature_images = torch.flatten(feature_images, 1)
                 feature_images = feature_extractor.classifier[0](feature_images)
+            feature_images = feature_images.unsqueeze(1)
 
-            outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                feature_images=feature_images
-            )
+            outputs, hiddens = model(input_ids, attention_mask, feature_images)
     
             if hyp_params.dataset == 'meme_dataset':
                 _, preds = torch.max(outputs, dim=1)
@@ -156,12 +157,9 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                     feature_images = feature_extractor.avgpool(feature_images)
                     feature_images = torch.flatten(feature_images, 1)
                     feature_images = feature_extractor.classifier[0](feature_images)
+                feature_images = feature_images.unsqueeze(1)
 
-                outputs = model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    feature_images=feature_images
-                )
+                outputs, hiddens = model(input_ids, attention_mask, feature_images)
 
                 if hyp_params.dataset == 'meme_dataset':
                     _, preds = torch.max(outputs, dim=1)
@@ -191,11 +189,12 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 
         end = time.time()
         duration = end-start
-        scheduler.step(val_loss)    # Decay learning rate by validation loss
+        scheduler.step(val_loss)
 
-        eval_hateful_meme(results, truths)
+        val_acc, val_f1 = metrics(results, truths)
+        val_acc2 = multiclass_acc(results, truths)
         print("-"*50)
-        print('Epoch {:2d} | Time {:5.4f} sec | Train Acc {:5.4f} | Train Loss {:5.4f} | Valid Loss {:5.4f}'.format(epoch, duration, train_acc, train_loss, val_loss))
+        print('Epoch {:2d} | Time {:5.4f} sec | Train Loss {:5.4f} | Valid Loss {:5.4f} | Valid Acc {:5.4f} -- {:5.4f} | Valid f1-score {:5.4f}'.format(epoch, duration, train_loss, val_loss, val_acc, val_acc2, val_f1))
         print("-"*50)
 
         if val_loss < best_valid:
@@ -205,15 +204,10 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 
     if test_loader is not None:
         model = load_model(hyp_params, name=hyp_params.name)
-        _, _, _ = evaluate(model, feature_extractor, criterion, test=True)
-    '''
-    if hyp_params.dataset == "mosei_senti":
-        eval_mosei_senti(results, truths, True)
-    elif hyp_params.dataset == 'mosi':
-        eval_mosi(results, truths, True)
-    elif hyp_params.dataset == 'iemocap':
-        eval_iemocap(results, truths)
-    '''
+        results, truths, val_loss = evaluate(model, feature_extractor, criterion, test=True)
+        test_acc, test_f1 = metrics(results, truths)
+        
+        print("\n\nTest Acc {:5.4f} | Test f1-score {:5.4f}".format(test_acc, test_f1))
 
     sys.stdout.flush()
     #input('[Press Any Key to start another run]')
