@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-from transformers import BertModel
 from modules.transformer import TransformerEncoder
 
 
@@ -24,7 +23,6 @@ class MMTransformerModel(nn.Module):
         self.out_dropout = hyp_params.out_dropout
         self.embed_dropout = hyp_params.embed_dropout
         self.attn_mask = hyp_params.attn_mask
-        self.bert = BertModel.from_pretrained(hyp_params.bert_model)
 
         combined_dim = self.d_l + self.d_v
 
@@ -77,15 +75,10 @@ class MMTransformerModel(nn.Module):
                                   embed_dropout=self.embed_dropout,
                                   attn_mask=self.attn_mask)
             
-    def forward(self, x_l, attention_mask, x_v):
+    def forward(self, x_l, x_v):
         """
         text, and vision should have dimension [batch_size, seq_len, n_features]
         """
-        
-        x_l, _ = self.bert(
-            input_ids=x_l,
-            attention_mask=attention_mask
-        )
         
         x_l = F.dropout(x_l.transpose(1, 2), p=self.embed_dropout, training=self.training)
         x_v = x_v.transpose(1, 2)
