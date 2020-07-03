@@ -261,7 +261,7 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 
     if test_loader is not None:
         model = load_model(hyp_params, name=hyp_params.name)
-        results, truths, val_loss = evaluate(model, feature_extractor, criterion, test=True)
+        results, truths, val_loss = evaluate(model, bert, tokenizer, feature_extractor, criterion, test=True)
         test_acc, test_f1 = metrics(results, truths)
         
         print("\n\nTest Acc {:5.4f} | Test f1-score {:5.4f}".format(test_acc, test_f1))
