@@ -12,7 +12,7 @@ Image.MAX_IMAGE_PIXELS = 1000000000
 class MemeDataset(Dataset):
     """Hateful memes dataset from Facebook challenge"""
 
-    def __init__(self, root_dir, dataset, split, model_name, max_len, transform=None):
+    def __init__(self, root_dir, dataset, split, transform=None):
         """
         Args:
             jsonl_file (string): Path to the csv file with annotations.

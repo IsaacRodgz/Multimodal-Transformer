@@ -91,7 +91,7 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
             input_ids = data_batch["input_ids"]
             targets = data_batch["label"]
             images = data_batch['image']
-            
+
             text_encoded = tokenizer.batch_encode_plus(
                 input_ids,
                 add_special_tokens=True,
@@ -228,7 +228,8 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         return results, truths, avg_loss
 
     best_valid = 1e8
-    writer = SummaryWriter('runs/'+hyp_params.model)
+    run_name = create_run_name(hyp_params)
+    writer = SummaryWriter('runs/'+run_name)
     for epoch in range(1, hyp_params.num_epochs+1):
         start = time.time()
         train_results, train_truths, train_loss = train(model, bert, tokenizer, feature_extractor, optimizer, criterion)
