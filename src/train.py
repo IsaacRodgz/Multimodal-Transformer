@@ -92,53 +92,30 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
             targets = data_batch["label"]
             images = data_batch['image']
 
-            text_encoded = tokenizer.batch_encode_plus(
-                input_ids,
-                add_special_tokens=True,
-                max_length=hyp_params.max_token_length,
-                return_token_type_ids=False,
-                pad_to_max_length=True,
-                return_attention_mask=True,
-                return_tensors='pt',
-            )
-            
             model.zero_grad()
 
             if hyp_params.use_cuda:
                 with torch.cuda.device(0):
-                    input_ids = text_encoded['input_ids'].cuda()
-                    attention_mask = text_encoded['attention_mask'].cuda()
+                    input_ids = input_ids.cuda()
                     targets = targets.cuda()
                     images = images.cuda()
                     
             if images.size()[0] != input_ids.size()[0]:
                 continue
 
-            with torch.no_grad():
-                feature_images = feature_extractor.features(images)
-                feature_images = feature_extractor.avgpool(feature_images)
-                feature_images = torch.flatten(feature_images, 1)
-                feature_images = feature_extractor.classifier[0](feature_images)
-            feature_images = feature_images.unsqueeze(1)
-            
-            bert_vects, _ = bert(
-                input_ids=input_ids,
-                attention_mask=attention_mask
-            )
-
-            outputs, hiddens = model(bert_vects, feature_images)
+            outputs, hiddens = model(input_ids, images)
                 
             if hyp_params.dataset == 'meme_dataset':
                 _, preds = torch.max(outputs, dim=1)
             else:
                 preds = outputs
+                
             preds_round = (preds > 0.5).float()
             loss = criterion(outputs, targets)
             losses.append(loss.item())
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), hyp_params.clip)
             optimizer.step()
-            #optimizer.zero_grad()
             
             total_loss += loss.item() * hyp_params.batch_size
             results.append(preds)
@@ -147,11 +124,11 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
             proc_loss += loss * hyp_params.batch_size
             proc_size += hyp_params.batch_size
             if i_batch % hyp_params.log_interval == 0 and i_batch > 0:
-                train_acc, train_f1 = metrics(preds_round, targets)
+                train_acc, train_f1_micro, train_f1_macro, train_f1_weighted, train_f1_samples = metrics(preds_round, targets)
                 avg_loss = proc_loss / proc_size
                 elapsed_time = time.time() - start_time
-                print('Epoch {:2d} | Batch {:3d}/{:3d} | Time/Batch(ms) {:5.2f} | Train Loss {:5.4f} | Train Acc {:5.4f} | Train f1-score {:5.4f}'.
-                      format(epoch, i_batch, num_batches, elapsed_time * 1000 / hyp_params.log_interval, avg_loss, train_acc, train_f1))
+                print('Epoch {:2d} | Batch {:3d}/{:3d} | Time/Batch(ms) {:5.2f} | Train Loss {:5.4f} | Train Acc {:5.4f} | Train f1-samples {:5.4f}'.
+                      format(epoch, i_batch, num_batches, elapsed_time * 1000 / hyp_params.log_interval, avg_loss, train_acc, train_f1_samples))
                 proc_loss, proc_size = 0, 0
                 start_time = time.time()
                 
@@ -175,39 +152,16 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
                 targets = data_batch["label"]
                 images = data_batch['image']
                 
-                text_encoded = tokenizer.batch_encode_plus(
-                    input_ids,
-                    add_special_tokens=True,
-                    max_length=hyp_params.max_token_length,
-                    return_token_type_ids=False,
-                    pad_to_max_length=True,
-                    return_attention_mask=True,
-                    return_tensors='pt',
-                )
-
                 if hyp_params.use_cuda:
                     with torch.cuda.device(0):
-                        input_ids = text_encoded['input_ids'].cuda()
-                        attention_mask = text_encoded['attention_mask'].cuda()
+                        input_ids = input_ids.cuda()
                         targets = targets.cuda()
                         images = images.cuda()
 
                 if images.size()[0] != input_ids.size()[0]:
                     continue
 
-                with torch.no_grad():
-                    feature_images = feature_extractor.features(images)
-                    feature_images = feature_extractor.avgpool(feature_images)
-                    feature_images = torch.flatten(feature_images, 1)
-                    feature_images = feature_extractor.classifier[0](feature_images)
-                feature_images = feature_images.unsqueeze(1)
-                
-                bert_vects, _ = bert(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask
-                )
-
-                outputs, hiddens = model(bert_vects, feature_images)
+                outputs, hiddens = model(input_ids, images)
 
                 if hyp_params.dataset == 'meme_dataset':
                     _, preds = torch.max(outputs, dim=1)
@@ -241,19 +195,26 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
         duration = end-start
         scheduler.step(val_loss)
 
-        train_acc, train_f1 = metrics(train_results, train_truths)
-        val_acc, val_f1 = metrics(results, truths)
+        train_acc, train_f1_micro, train_f1_macro, train_f1_weighted, train_f1_samples = metrics(train_results, train_truths)
+        val_acc, val_f1_micro, val_f1_macro, val_f1_weighted, val_f1_samples = metrics(results, truths)
+        
         print("-"*50)
-        print('Epoch {:2d} | Time {:5.4f} sec | Train Loss {:5.4f} | Valid Loss {:5.4f} | Valid Acc {:5.4f} | Valid f1-score {:5.4f}'.format(epoch, duration, train_loss, val_loss, val_acc, val_f1))
+        print('Epoch {:2d} | Time {:5.4f} sec | Train Loss {:5.4f} | Valid Loss {:5.4f} | Valid Acc {:5.4f} | Valid f1-samples {:5.4f}'.format(epoch, duration, train_loss, val_loss, val_acc, val_f1_samples))
         print("-"*50)
         
         writer.add_scalar('Loss/train', train_loss, epoch)
         writer.add_scalar('Accuracy/train', train_acc, epoch)
-        writer.add_scalar('F1-score/train', train_f1, epoch)
+        writer.add_scalar('F1-micro/train', train_f1_micro, epoch)
+        writer.add_scalar('F1-macro/train', train_f1_macro, epoch)
+        writer.add_scalar('F1-weighted/train', train_f1_weighted, epoch)
+        writer.add_scalar('F1-samples/train', train_f1_samples, epoch)
 
         writer.add_scalar('Loss/val', val_loss, epoch)
         writer.add_scalar('Accuracy/val', val_acc, epoch)
-        writer.add_scalar('F1-score/val', val_f1, epoch)
+        writer.add_scalar('F1-micro/val', val_f1_micro, epoch)
+        writer.add_scalar('F1-macro/val', val_f1_macro, epoch)
+        writer.add_scalar('F1-weighted/val', val_f1_weighted, epoch)
+        writer.add_scalar('F1-samples/val', val_f1_samples, epoch)
 
         if val_loss < best_valid:
             print(f"Saved model at pre_trained_models/{hyp_params.name}.pt!")
@@ -262,9 +223,9 @@ def train_model(settings, hyp_params, train_loader, valid_loader, test_loader):
 
     if test_loader is not None:
         model = load_model(hyp_params, name=hyp_params.name)
-        results, truths, val_loss = evaluate(model, bert, tokenizer, feature_extractor, criterion, test=True)
-        test_acc, test_f1 = metrics(results, truths)
+        results, truths, val_loss = evaluate(model, criterion, test=True)
+        test_acc, test_f1_micro, test_f1_macro, test_f1_weighted, test_f1_samples = metrics(results, truths)
         
-        print("\n\nTest Acc {:5.4f} | Test f1-score {:5.4f}".format(test_acc, test_f1))
+        print("\n\nTest Acc {:5.4f} | Test f1-micro {:5.4f} | Test f1-macro {:5.4f} | Test f1-weighted {:5.4f} | Test f1-samples {:5.4f}".format(test_acc, test_f1_micro, test_f1_macro, test_f1_weighted, test_f1_samples))
 
     sys.stdout.flush()

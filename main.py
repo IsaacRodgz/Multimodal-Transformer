@@ -98,7 +98,7 @@ use_cuda = False
 
 output_dim_dict = {
     'meme_dataset': 2,
-    'mmimdb': 27
+    'mmimdb': 23
 }
 
 criterion_dict = {
@@ -127,18 +127,30 @@ train_data = get_data(args, dataset, 'train')
 valid_data = get_data(args, dataset, 'dev')
 test_data = get_data(args, dataset, 'test')
 
+'''
+def my_collate(batch):
+    max_len = max([item['input_ids'].shape[0] for item in batch])
+    txt_batch = [item['input_ids'] for item in batch]
+    img_batch = [item['image'] for item in batch]
+    label_batch = [item['label'] for item in batch]
+    
+    return {'input_ids': txt_batch, 'image': img_batch, 'label': label_batch}
+'''
+
 train_loader = DataLoader(train_data,
                         batch_size=args.batch_size,
                         shuffle=True,
-                        num_workers=6)
+                        #collate_fn=my_collate,
+                        num_workers=32)
 valid_loader = DataLoader(valid_data,
                         batch_size=args.batch_size,
                         shuffle=True,
-                        num_workers=6)
+                        #collate_fn=my_collate,
+                        num_workers=32)
 if test_data is None:
     test_loader = None
 else:
-    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True, num_workers=6)
+    test_loader = DataLoader(test_data, batch_size=args.batch_size, shuffle=True, num_workers=32)
 
 print('Finish loading the data....')
 

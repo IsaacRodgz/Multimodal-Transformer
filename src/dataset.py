@@ -5,9 +5,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 from torch.utils.data.dataset import Dataset
-
-Image.MAX_IMAGE_PIXELS = 1000000000
-
+import json
 
 class MemeDataset(Dataset):
     """Hateful memes dataset from Facebook challenge"""
@@ -67,69 +65,30 @@ class MemeDataset(Dataset):
 class MMIMDbDataset(Dataset):
     """Multimodal IMDb dataset (http://lisi1.unal.edu.co/mmimdb)"""
 
-    def __init__(self, root_dir, dataset, split, transform=None):
+    def __init__(self, root_dir, dataset, idxs):
         """
         Args:
-            jsonl_file (string): Path to the csv file with annotations.
             root_dir (string): Directory with all data
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
 
-        # Metadata
-        self.full_data_path = os.path.join(root_dir, dataset) + '/split.json'
-        with open(self.full_data_path) as json_data:
-            self.data_dict_raw = json.load(json_data)[split]
+        self.full_data_path = os.path.join(root_dir, dataset)+'/data_bert_120/features'
+        self.idxs = idxs
         
-        plots = []
-        image_names = []
-        genres = []
-
-        for id in self.data_dict_raw:
-            with open(os.path.join(root_dir, dataset)+"/dataset/"+str(id)+'.json') as json_data:
-                movie = json.load(json_data)
-            plots.append(movie['plot'][0])
-            genres.append(movie['genres'])
-            image_names.append(os.path.join(root_dir, dataset)+"/dataset/"+str(id)+'.jpeg')
-            
-        self.data_dict = pd.DataFrame({'image': image_names, 'label': genres, 'text': plots})
-            
-        self.root_dir = root_dir
-        self.dataset = dataset
-        self.transform = transform
-        self.genres = ['Horror', 'News', 'Animation',
-                       'Musical', 'Fantasy', 'Family',
-                       'Romance', 'Short', 'Comedy',
-                       'Film-Noir', 'Mystery', 'Thriller',
-                       'Documentary', 'Crime', 'History',
-                       'Biography', 'Western', 'War',
-                       'Adult', 'Adventure', 'Drama',
-                       'Action', 'Music', 'Sci-Fi',
-                       'Sport', 'Reality-TV', 'Talk-Show']
-        self.num_classes = len(self.genres)
-
     def __len__(self):
-        return len(self.data_dict)
+        
+        return len(self.idxs)
 
     def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        img_name = self.data_dict.iloc[idx,0]
-        image = Image.open(img_name).convert('RGB')
+        data = torch.load(self.full_data_path+'/'+self.idxs[idx]+'.pt')
         
-        label = self.data_dict.iloc[idx,1]
-        indeces = torch.LongTensor([self.genres.index(e) for e in label])
-        label = torch.nn.functional.one_hot(indeces, num_classes = self.num_classes).sum(dim=0)
+        text_feature = data['txt']
+        visual_feature = data['img']
+        labels = data['labels']
 
-        text = self.data_dict.iloc[idx,2]
-
-        if self.transform:
-            image = self.transform(image)
-
-        sample = {'image': image,
-                  'input_ids': text,
-                  "label": label.type(torch.FloatTensor)}
+        sample = {'image': visual_feature,
+                  'input_ids': text_feature,
+                  "label": labels.type(torch.FloatTensor)}
 
         return sample
-    
