@@ -1,0 +1,62 @@
+hyp_params: !!python/object:argparse.Namespace
+  aligned: false
+  attn_dropout: 0.1
+  attn_dropout_v: 0.0
+  attn_mask: true
+  batch_size: 32
+  bert_model: bert-base-cased
+  chk: 3
+  cnn_model: vgg16
+  data_path: /001/usuarios/isaac.bribiesca/
+  dataset: mmimdb
+  embed_dropout: 0.25
+  gamma: 0.1
+  gpus: 2
+  gradient_clip_val: 0.8
+  image_feature_size: 4096
+  l_len: 120
+  label_weights: !!python/object/apply:torch._utils._rebuild_tensor_v2
+  - !!python/object/apply:torch.storage._load_from_bytes
+    - !!binary |
+      gAKKCmz8nEb5IGqoUBkugAJN6QMugAJ9cQAoWBAAAABwcm90b2NvbF92ZXJzaW9ucQFN6QNYDQAA
+      AGxpdHRsZV9lbmRpYW5xAohYCgAAAHR5cGVfc2l6ZXNxA31xBChYBQAAAHNob3J0cQVLAlgDAAAA
+      aW50cQZLBFgEAAAAbG9uZ3EHSwR1dS6AAihYBwAAAHN0b3JhZ2VxAGN0b3JjaApGbG9hdFN0b3Jh
+      Z2UKcQFYDgAAADk0ODM0OTAyOTA3MTA0cQJYBgAAAGN1ZGE6MHEDSxdOdHEEUS6AAl1xAFgOAAAA
+      OTQ4MzQ5MDI5MDcxMDRxAWEuFwAAAAAAAADFTuw/UNtCQD9EmkDK3Z9ARAnZQEDv5kBGdRpBnDob
+      QY2lSUFaI0pBk05NQSEkVkHwbX5Bv1yaQWnjnUH39rZBYD3EQWJQ1EERWfdBVxATQiAjJEJ7YV1C
+      7vqZQg==
+  - 0
+  - !!python/tuple
+    - 23
+  - !!python/tuple
+    - 1
+  - false
+  - !!python/object/apply:collections.OrderedDict
+    - []
+  layers: 5
+  log_interval: 100
+  lonly: false
+  lr: 0.001
+  max_epochs: 100
+  max_token_length: 120
+  model: GMU
+  name: model
+  nlevels: 5
+  no_cuda: false
+  num_heads: 5
+  num_workers: 80
+  optim: AdamW
+  orig_d_l: 768
+  orig_d_v: 4096
+  out_dropout: 0.0
+  output_dim: 23
+  relu_dropout: 0.1
+  res_dropout: 0.1
+  search: false
+  seed: 1111
+  test: false
+  use_cuda: false
+  v_len: 1
+  vonly: false
+  when: 2
+trial: null

@@ -165,9 +165,9 @@ train_idx = [int(i) for i in train_idx]
 dev_idx = [int(i) for i in dev_idx]
 test_idx = [int(i) for i in test_idx]
 
-
+max_len=120
 dict_idxs = {'train': list(np.array(ids)[train_idx]), 'dev': list(np.array(ids)[dev_idx]), 'test': list(np.array(ids)[test_idx])}
-with open('../mmimdb/data_bert_120/partition.json', 'w') as fp:
+with open('../mmimdb/data_bert_'+str(max_len)+'/partition.json', 'w') as fp:
     json.dump(dict_idxs, fp)
 
 
@@ -175,8 +175,8 @@ for i, idx in enumerate(ids):
     txt_tensor = extract_embedding(txt_f[i])
     img_tensor = extract_visual(idx)
     
-    example = {'txt': txt_tensor, 'img': img_tensor, 'labels': torch.tensor(Y[i,:n_classes])}
-    torch.save(example, f'../mmimdb/data_bert_120/features/{idx}.pt')
+    example = {'txt': txt_tensor, 'img': img_tensor, 'labels': torch.tensor(Y[i,labels])}
+    torch.save(example, f'../mmimdb/data_bert_'+str(max_len)+f'/features/{idx}.pt')
     
     if i%300==0:
         print(f"Saving {i} ...")

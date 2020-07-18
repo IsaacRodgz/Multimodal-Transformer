@@ -21,13 +21,15 @@ def get_data(args, dataset, split='train'):
                                    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                                ]))
     elif dataset == 'mmimdb':
-        data_path = os.path.join(args.data_path, dataset) + '/data_bert_120/partition.json'
+        data_path = os.path.join(args.data_path, dataset) + '/data_bert_'+str(args.max_token_length)+'/partition.json'
         
         with open(data_path) as json_file:
             labels = json.load(json_file)[split]
 
         data = MMIMDbDataset(args.data_path,
-                           dataset, labels)
+                             dataset,
+                             args.max_token_length,
+                             labels)
     return data
 
 
@@ -47,12 +49,13 @@ def create_run_name(args):
     run = '{}={}'.format('nw', args.model)
     run += '_{}={}'.format('ds', args.dataset)
     run += '_{}={}'.format('op', args.optim)
-    run += '_{}={}'.format('ep', args.num_epochs)
+    run += '_{}={}'.format('ep', args.max_epochs)
     run += '_{}={}'.format('bs', args.batch_size)
     run += '_{}={}'.format('mtl', args.max_token_length)
     run += '_{}={}'.format('lr', args.lr)
     run += '_{}={}'.format('wh', args.when)
-    run += '_{}={}'.format('cl', args.clip)
+    run += '_{}={}'.format('cl', args.gradient_clip_val)
+    run += '_{}={}'.format('ga', args.gamma)
     run += '_{}'.format(datetime.now().strftime("%m-%d-%Y-%H-%M-%S"))
     
     return run

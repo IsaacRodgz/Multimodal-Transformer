@@ -21,6 +21,20 @@ def metrics(results, truths):
 
     return accuarcy, f_score_micro, f_score_macro, f_score_weighted, f_score_samples
 
+def report_per_class(results, truths):
+    preds = results.cpu().detach().numpy()
+    truth = truths.cpu().detach().numpy()
+
+    preds = np.where(preds > 0.5, 1, 0)
+    truth = np.where(truth > 0.5, 1, 0)
+    
+    report = classification_report(truth, preds, zero_division=0, output_dict = True)
+    
+    class_labels = [k for k in report.keys() if k not in ['micro avg', 'macro avg', 'weighted avg', 'samples avg']]
+    scores_list = [report[v]['f1-score'] for v in class_labels]
+    
+    return np.array(scores_list)
+
 def multiclass_acc(results, truths):
     preds = results.view(-1).cpu().detach().numpy()
     truth = truths.view(-1).cpu().detach().numpy()

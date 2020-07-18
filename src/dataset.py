@@ -65,7 +65,7 @@ class MemeDataset(Dataset):
 class MMIMDbDataset(Dataset):
     """Multimodal IMDb dataset (http://lisi1.unal.edu.co/mmimdb)"""
 
-    def __init__(self, root_dir, dataset, idxs):
+    def __init__(self, root_dir, dataset, token_len, idxs):
         """
         Args:
             root_dir (string): Directory with all data
@@ -73,7 +73,7 @@ class MMIMDbDataset(Dataset):
                 on a sample.
         """
 
-        self.full_data_path = os.path.join(root_dir, dataset)+'/data_bert_120/features'
+        self.full_data_path = os.path.join(root_dir, dataset)+'/data_bert_'+str(token_len)+'/features'
         self.idxs = idxs
         
     def __len__(self):
